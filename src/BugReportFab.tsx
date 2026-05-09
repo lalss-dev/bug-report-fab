@@ -31,6 +31,26 @@ type SnipState =
   | { phase: "selecting"; origin: { x: number; y: number }; current: { x: number; y: number } }
   | { phase: "capturing" };
 
+// Inline CSS — kept in the component so consumers don't have to wire up a
+// separate `import "@lalss/bug-report-fab/styles.css"`. Webpack-mode
+// Next.js trips over package.json `exports` for CSS subpaths even when
+// the file is shipped, so dropping the external file removes that whole
+// failure surface. Rules are tiny (animations + tab underline pseudo-
+// element); inlining them costs ~700 bytes per FAB mount once gzipped.
+const BRF_CSS = `
+@keyframes brf-fade-in { from { opacity: 0 } to { opacity: 1 } }
+.brf-snip-overlay { cursor: crosshair; touch-action: none; }
+.brf-fade-in { animation: brf-fade-in 120ms ease-out; }
+.brf-fab-button { transition: transform 150ms ease-out, box-shadow 150ms ease-out, opacity 150ms ease-out; }
+.brf-fab-button:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0,0,0,0.18); }
+.brf-fab-button:disabled { opacity: 0.6; cursor: not-allowed; }
+.brf-tab { transition: color 120ms ease-out; position: relative; }
+.brf-tab[data-active="true"]::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 3px;
+  border-radius: 3px 3px 0 0; background: var(--brf-secondary, var(--brf-primary));
+}
+`;
+
 type Attachment = { file: File; preview: string };
 
 const PRIORITIES: BugReportPriority[] = ["low", "normal", "high", "urgent"];
@@ -253,6 +273,7 @@ export function BugReportFab(props: BugReportFabProps) {
 
   return (
     <div style={brandStyle}>
+      <style>{BRF_CSS}</style>
       {/* FAB BUTTON */}
       <button
         data-brf-skip="1"

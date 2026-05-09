@@ -1,6 +1,6 @@
 {
   "name": "@lalss/bug-report-fab",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Federated bug-report FAB for lalss apps. Click → form modal with html2canvas-pro snip, brand-customizable, submit logic injected by consumer. Federation source of truth.",
   "private": false,
   "type": "module",
@@ -10,8 +10,7 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./styles.css": "./dist/styles.css"
+    }
   },
   "files": [
     "dist",
@@ -19,7 +18,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && node scripts/copy-css.mjs",
+    "build": "tsc",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run clean && npm run build",
     "prepare": "npm run build"
