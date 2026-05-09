@@ -485,6 +485,57 @@ export function BugReportFab(props: BugReportFabProps) {
             })}
           </div>
 
+          {/* INBOX LINK (optional) — banner row that lets users jump to
+              their dedicated inbox page from the FAB. Hidden when the
+              consumer doesn't pass `inboxLink` or sets it to null. */}
+          {props.inboxLink && (
+            <a
+              href={props.inboxLink.href}
+              onClick={() => setOpen(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 20px",
+                borderBottom: "1px solid #e5e7eb",
+                background: "rgba(0,0,0,0.04)",
+                textDecoration: "none",
+                color: "#111827",
+                fontSize: 12,
+                fontWeight: 600,
+                transition: "background 120ms",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.07)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.04)"; }}
+            >
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                {props.inboxLink.label}
+                {showBadge && (
+                  <span
+                    style={{
+                      minWidth: 16,
+                      height: 16,
+                      padding: "0 4px",
+                      borderRadius: 9999,
+                      background: brandSecondary,
+                      color: brandOnPrimary,
+                      fontSize: 9,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {(props.repliedBadgeCount ?? 0) > 99 ? "99+" : props.repliedBadgeCount}
+                  </span>
+                )}
+              </span>
+              <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "#6b7280" }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </a>
+          )}
+
           {/* BODY */}
           {success ? (
             <div style={{ padding: "48px 20px", textAlign: "center" }}>

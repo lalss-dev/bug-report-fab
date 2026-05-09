@@ -107,6 +107,18 @@ export type BugReportFabProps = BugReportBrand & {
   /** Hide the FAB on certain pathnames (login screens, kiosk views, etc).
    *  Returns true to hide, false to show. Called once per render. */
   hideOnPath?: (pathname: string) => boolean;
+
+  /** Optional "open my inbox" affordance rendered inside the modal as a
+   *  banner row below the tabs. Useful when the consumer has a dedicated
+   *  inbox page (CRM `/developer-console`, ERP `/bug-report`, etc.) so
+   *  users with unread replies can jump there from the FAB.
+   *
+   *  When omitted, no banner row is rendered. The consumer is also
+   *  responsible for hiding the link on pages where it would be a
+   *  no-op (set `inboxLink` to `null` when `pathname` already equals
+   *  `inboxLink.href`).
+   */
+  inboxLink?: { label: string; href: string } | null;
 };
 
 export type BugReportLabels = {
