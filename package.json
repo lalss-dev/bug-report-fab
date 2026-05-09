@@ -1,6 +1,6 @@
 {
   "name": "@lalss/bug-report-fab",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Federated bug-report FAB for lalss apps. Click → form modal with html2canvas-pro snip, brand-customizable, submit logic injected by consumer. Federation source of truth.",
   "private": false,
   "type": "module",
