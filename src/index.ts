@@ -19,6 +19,7 @@ export type {
   BugReportPriority,
   BugReportSubmitPayload,
   BugReportSubmitResult,
+  BugReportTheme,
 } from "./types.js";
 export { DEFAULT_LABELS } from "./types.js";
 

@@ -20,6 +20,7 @@ import type {
   BugReportFabProps,
   BugReportLabels,
   BugReportPriority,
+  BugReportTheme,
 } from "./types.js";
 import { DEFAULT_LABELS } from "./types.js";
 import { BrfModal } from "./Modal.js";
@@ -51,6 +52,75 @@ const BRF_CSS = `
 }
 `;
 
+// Modal palette per theme. Brand colors stay constant; surface / text /
+// border colors flip. Light defaults match the original v0.4.0 hex codes
+// so existing consumers don't see visual drift.
+type Palette = {
+  surface: string;
+  surface2: string;
+  text: string;
+  textDim: string;
+  muted: string;
+  border: string;
+  divider: string;
+  inputBg: string;
+  chipInactiveBg: string;
+  chipInactiveText: string;
+  inboxRowBg: string;
+  inboxRowBgHover: string;
+  successBg: string;
+  successFg: string;
+  errorBg: string;
+  errorFg: string;
+  cancelBg: string;
+  cancelText: string;
+  cancelBorder: string;
+};
+
+const LIGHT_PALETTE: Palette = {
+  surface: "#ffffff",
+  surface2: "#f9fafb",
+  text: "#111827",
+  textDim: "#374151",
+  muted: "#6b7280",
+  border: "#d1d5db",
+  divider: "#e5e7eb",
+  inputBg: "#ffffff",
+  chipInactiveBg: "rgba(0,0,0,0.04)",
+  chipInactiveText: "#6b7280",
+  inboxRowBg: "rgba(0,0,0,0.04)",
+  inboxRowBgHover: "rgba(0,0,0,0.07)",
+  successBg: "rgba(34,197,94,0.15)",
+  successFg: "#16a34a",
+  errorBg: "rgba(239,68,68,0.10)",
+  errorFg: "#dc2626",
+  cancelBg: "#ffffff",
+  cancelText: "#374151",
+  cancelBorder: "#d1d5db",
+};
+
+const DARK_PALETTE: Palette = {
+  surface: "#1a1a22",
+  surface2: "#22222b",
+  text: "#e5e7eb",
+  textDim: "#d1d5db",
+  muted: "#9ca3af",
+  border: "#3a3a45",
+  divider: "#2a2a35",
+  inputBg: "#15151c",
+  chipInactiveBg: "rgba(255,255,255,0.06)",
+  chipInactiveText: "#9ca3af",
+  inboxRowBg: "rgba(255,255,255,0.04)",
+  inboxRowBgHover: "rgba(255,255,255,0.08)",
+  successBg: "rgba(34,197,94,0.18)",
+  successFg: "#4ade80",
+  errorBg: "rgba(239,68,68,0.18)",
+  errorFg: "#f87171",
+  cancelBg: "transparent",
+  cancelText: "#e5e7eb",
+  cancelBorder: "#3a3a45",
+};
+
 type Attachment = { file: File; preview: string };
 
 const PRIORITIES: BugReportPriority[] = ["low", "normal", "high", "urgent"];
@@ -78,6 +148,29 @@ export function BugReportFab(props: BugReportFabProps) {
   const brandPrimary = props.brandPrimary;
   const brandSecondary = props.brandSecondary ?? props.brandPrimary;
   const brandOnPrimary = props.brandOnPrimary ?? "#ffffff";
+
+  // Resolve theme. "auto" reads prefers-color-scheme on mount; we keep
+  // the resolved value in state so SSR renders light (matching v0.4.0
+  // behavior) and the client hydrates to dark if appropriate. Listening
+  // for changes too so toggling the OS-level setting updates the modal
+  // without a remount — small win, cheap to implement.
+  const themeProp: BugReportTheme = props.theme ?? "auto";
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(
+    themeProp === "dark" ? "dark" : "light",
+  );
+  useEffect(() => {
+    if (themeProp !== "auto") {
+      setResolvedTheme(themeProp);
+      return;
+    }
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => setResolvedTheme(mq.matches ? "dark" : "light");
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => mq.removeEventListener?.("change", apply);
+  }, [themeProp]);
+  const palette = resolvedTheme === "dark" ? DARK_PALETTE : LIGHT_PALETTE;
 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<BugReportCategory>(props.defaultCategory ?? "bug");
@@ -438,9 +531,10 @@ export function BugReportFab(props: BugReportFabProps) {
             flexDirection: "column",
             borderRadius: 12,
             overflow: "hidden",
-            background: "#fff",
+            background: palette.surface,
+            color: palette.text,
             boxShadow: "0 24px 48px rgba(0,0,0,0.25)",
-            border: "1px solid #e5e7eb",
+            border: `1px solid ${palette.border}`,
           }}
         >
           <div
@@ -474,7 +568,7 @@ export function BugReportFab(props: BugReportFabProps) {
           </div>
 
           {/* TABS */}
-          <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb" }}>
+          <div style={{ display: "flex", borderBottom: `1px solid ${palette.divider}` }}>
             {(["bug", "feature", "message"] as const).map((k) => {
               const label = k === "bug" ? labels.tabBug : k === "feature" ? labels.tabFeature : labels.tabMessage;
               const active = tab === k;
@@ -497,7 +591,7 @@ export function BugReportFab(props: BugReportFabProps) {
                     cursor: "pointer",
                     fontSize: 12,
                     fontWeight: 600,
-                    color: active ? "#111827" : "#6b7280",
+                    color: active ? palette.text : palette.muted,
                   }}
                 >
                   {label}
@@ -518,16 +612,16 @@ export function BugReportFab(props: BugReportFabProps) {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "10px 20px",
-                borderBottom: "1px solid #e5e7eb",
-                background: "rgba(0,0,0,0.04)",
+                borderBottom: `1px solid ${palette.divider}`,
+                background: palette.inboxRowBg,
                 textDecoration: "none",
-                color: "#111827",
+                color: palette.text,
                 fontSize: 12,
                 fontWeight: 600,
                 transition: "background 120ms",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.07)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.04)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = palette.inboxRowBgHover; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = palette.inboxRowBg; }}
             >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                 {props.inboxLink.label}
@@ -551,7 +645,7 @@ export function BugReportFab(props: BugReportFabProps) {
                   </span>
                 )}
               </span>
-              <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "#6b7280" }}>
+              <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: palette.muted }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
             </a>
@@ -566,8 +660,8 @@ export function BugReportFab(props: BugReportFabProps) {
                   height: 48,
                   margin: "0 auto 16px",
                   borderRadius: 9999,
-                  background: "rgba(34,197,94,0.15)",
-                  color: "#16a34a",
+                  background: palette.successBg,
+                  color: palette.successFg,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -588,27 +682,27 @@ export function BugReportFab(props: BugReportFabProps) {
           ) : isTechnical ? (
             <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", flex: 1 }}>
               <div style={{ overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-                <Field label={labels.fabSubject} required>
+                <Field label={labels.fabSubject} required palette={palette}>
                   <input
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    style={inputStyle}
+                    style={makeInputStyle(palette)}
                   />
                 </Field>
-                <Field label={labels.fabDescription} required>
+                <Field label={labels.fabDescription} required palette={palette}>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
-                    style={{ ...inputStyle, resize: "none" }}
+                    style={{ ...makeInputStyle(palette), resize: "none" }}
                   />
                 </Field>
 
-                <Field label={`${labels.fabAttachments} (max 5, max 10MB)`}>
+                <Field label={`${labels.fabAttachments} (max 5, max 10MB)`} palette={palette}>
                   {images.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
                       {images.map((a, idx) => (
-                        <Thumb key={idx} att={a} onRemove={() => removeImage(idx)} />
+                        <Thumb key={idx} att={a} onRemove={() => removeImage(idx)} palette={palette} />
                       ))}
                     </div>
                   )}
@@ -627,8 +721,8 @@ export function BugReportFab(props: BugReportFabProps) {
                         }}
                         style={{
                           ...dropZoneStyle,
-                          borderColor: dragActive ? brandPrimary : "#d1d5db",
-                          color: dragActive ? brandPrimary : "#6b7280",
+                          borderColor: dragActive ? brandPrimary : palette.border,
+                          color: dragActive ? brandPrimary : palette.muted,
                           background: dragActive ? `${brandPrimary}0d` : "transparent",
                         }}
                       >
@@ -644,7 +738,11 @@ export function BugReportFab(props: BugReportFabProps) {
                       <button
                         type="button"
                         onClick={startSnip}
-                        style={{ ...dropZoneStyle }}
+                        style={{
+                          ...dropZoneStyle,
+                          borderColor: palette.border,
+                          color: palette.muted,
+                        }}
                       >
                         <svg width={20} height={20} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H5a2 2 0 00-2 2v3m0 4v3a2 2 0 002 2h3m4-14h3a2 2 0 012 2v3m0 4v3a2 2 0 01-2 2h-3" />
@@ -667,7 +765,7 @@ export function BugReportFab(props: BugReportFabProps) {
                   )}
                 </Field>
 
-                <Field label={labels.fabPriority}>
+                <Field label={labels.fabPriority} palette={palette}>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {PRIORITIES.map((p) => {
                       const active = priority === p;
@@ -683,8 +781,8 @@ export function BugReportFab(props: BugReportFabProps) {
                           style={{
                             padding: "4px 14px",
                             borderRadius: 9999,
-                            background: active ? `${brandSecondary}26` : "rgba(0,0,0,0.04)",
-                            color: active ? brandSecondary : "#6b7280",
+                            background: active ? `${brandSecondary}26` : palette.chipInactiveBg,
+                            color: active ? brandSecondary : palette.chipInactiveText,
                             border: active ? `2px solid ${brandSecondary}` : "2px solid transparent",
                             fontSize: 12,
                             fontWeight: 600,
@@ -698,7 +796,7 @@ export function BugReportFab(props: BugReportFabProps) {
                   </div>
                 </Field>
 
-                {error && <ErrorBanner message={error} />}
+                {error && <ErrorBanner message={error} palette={palette} />}
               </div>
               <Footer
                 onCancel={() => setOpen(false)}
@@ -708,27 +806,28 @@ export function BugReportFab(props: BugReportFabProps) {
                 primaryColor={brandSecondary}
                 primaryText={brandOnPrimary}
                 submitLabel={saving ? labels.fabSubmitting : labels.fabSubmit}
+                palette={palette}
               />
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", flex: 1 }}>
               <div style={{ overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-                <Field label={labels.fabSubject} required>
+                <Field label={labels.fabSubject} required palette={palette}>
                   <input
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    style={inputStyle}
+                    style={makeInputStyle(palette)}
                   />
                 </Field>
-                <Field label={labels.fabDescription} required>
+                <Field label={labels.fabDescription} required palette={palette}>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
-                    style={{ ...inputStyle, resize: "none" }}
+                    style={{ ...makeInputStyle(palette), resize: "none" }}
                   />
                 </Field>
-                {error && <ErrorBanner message={error} />}
+                {error && <ErrorBanner message={error} palette={palette} />}
               </div>
               <Footer
                 onCancel={() => setOpen(false)}
@@ -738,6 +837,7 @@ export function BugReportFab(props: BugReportFabProps) {
                 primaryColor={brandSecondary}
                 primaryText={brandOnPrimary}
                 submitLabel={saving ? labels.fabSubmitting : labels.fabSubmit}
+                palette={palette}
               />
             </div>
           )}
@@ -749,17 +849,23 @@ export function BugReportFab(props: BugReportFabProps) {
 
 // ── Internal helpers ────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: 8,
-  border: "1px solid #d1d5db",
-  fontSize: 14,
-  fontFamily: "inherit",
-  color: "#111827",
-  background: "#fff",
-  outline: "none",
-};
+// Themed input + dropzone — colors injected per-render from the parent's
+// resolved palette so dark mode flows through. The constants below are
+// shape-only (sizes, padding, transitions); colors come from props.
+
+function makeInputStyle(palette: Palette): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: `1px solid ${palette.border}`,
+    fontSize: 14,
+    fontFamily: "inherit",
+    color: palette.text,
+    background: palette.inputBg,
+    outline: "none",
+  };
+}
 
 const dropZoneStyle: React.CSSProperties = {
   display: "flex",
@@ -775,10 +881,10 @@ const dropZoneStyle: React.CSSProperties = {
   transition: "border-color 120ms, color 120ms, background 120ms",
 };
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, palette, children }: { label: string; required?: boolean; palette: Palette; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "#6b7280", marginBottom: 4 }}>
+      <label style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: palette.muted, marginBottom: 4 }}>
         {label}{required && <span style={{ color: "#f4561e", marginLeft: 4 }}>*</span>}
       </label>
       {children}
@@ -786,7 +892,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-function Thumb({ att, onRemove }: { att: Attachment; onRemove: () => void }) {
+function Thumb({ att, onRemove, palette }: { att: Attachment; onRemove: () => void; palette: Palette }) {
   const isImage = !!att.preview;
   return (
     <div
@@ -795,8 +901,8 @@ function Thumb({ att, onRemove }: { att: Attachment; onRemove: () => void }) {
         height: 64,
         ...(isImage
           ? { width: 64 }
-          : { padding: "0 12px", display: "flex", alignItems: "center", gap: 8, background: "#f9fafb" }),
-        border: "1px solid #e5e7eb",
+          : { padding: "0 12px", display: "flex", alignItems: "center", gap: 8, background: palette.surface2 }),
+        border: `1px solid ${palette.divider}`,
         borderRadius: 8,
         overflow: "hidden",
       }}
@@ -806,12 +912,12 @@ function Thumb({ att, onRemove }: { att: Attachment; onRemove: () => void }) {
         <img src={att.preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
         <>
-          <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "#9ca3af", flexShrink: 0 }}>
+          <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: palette.muted, flexShrink: 0 }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <div style={{ display: "flex", flexDirection: "column", fontSize: 12, minWidth: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", fontSize: 12, minWidth: 0, color: palette.text }}>
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "10rem", fontWeight: 500 }}>{att.file.name}</span>
-            <span style={{ fontSize: 10, color: "#9ca3af" }}>{(att.file.size / 1024 / 1024).toFixed(2)} MB</span>
+            <span style={{ fontSize: 10, color: palette.muted }}>{(att.file.size / 1024 / 1024).toFixed(2)} MB</span>
           </div>
         </>
       )}
@@ -843,16 +949,16 @@ function Thumb({ att, onRemove }: { att: Attachment; onRemove: () => void }) {
   );
 }
 
-function ErrorBanner({ message }: { message: string }) {
+function ErrorBanner({ message, palette }: { message: string; palette: Palette }) {
   return (
-    <p style={{ margin: 0, padding: "12px 16px", borderRadius: 8, background: "rgba(239,68,68,0.1)", color: "#dc2626", fontSize: 14 }}>
+    <p style={{ margin: 0, padding: "12px 16px", borderRadius: 8, background: palette.errorBg, color: palette.errorFg, fontSize: 14 }}>
       {message}
     </p>
   );
 }
 
 function Footer({
-  onCancel, onSubmit, submitting, disabled, submitLabel, primaryColor, primaryText,
+  onCancel, onSubmit, submitting, disabled, submitLabel, primaryColor, primaryText, palette,
 }: {
   onCancel: () => void;
   onSubmit: () => void;
@@ -861,18 +967,19 @@ function Footer({
   submitLabel: string;
   primaryColor: string;
   primaryText: string;
+  palette: Palette;
 }) {
   return (
-    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 20px", borderTop: "1px solid #e5e7eb" }}>
+    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 20px", borderTop: `1px solid ${palette.divider}` }}>
       <button
         type="button"
         onClick={onCancel}
         style={{
           padding: "8px 16px",
           borderRadius: 8,
-          border: "1px solid #d1d5db",
-          background: "#fff",
-          color: "#374151",
+          border: `1px solid ${palette.cancelBorder}`,
+          background: palette.cancelBg,
+          color: palette.cancelText,
           cursor: "pointer",
           fontSize: 14,
           fontWeight: 600,

@@ -52,6 +52,11 @@ export type BugReportBrand = {
   brandOnPrimary?: string;
 };
 
+/** Modal theme — surface, text, border colors. `auto` reads
+ *  `prefers-color-scheme` on mount (falls back to `light` during SSR).
+ *  The brand colors above stay constant across themes. */
+export type BugReportTheme = "light" | "dark" | "auto";
+
 export type BugReportFabProps = BugReportBrand & {
   /** Source app tag — emitted with every ticket so the central registry
    *  can group by app. */
@@ -107,6 +112,11 @@ export type BugReportFabProps = BugReportBrand & {
   /** Hide the FAB on certain pathnames (login screens, kiosk views, etc).
    *  Returns true to hide, false to show. Called once per render. */
   hideOnPath?: (pathname: string) => boolean;
+
+  /** Modal theme. Defaults to `"auto"` (follows `prefers-color-scheme`).
+   *  Pass `"light"` or `"dark"` explicitly when the consumer app has its
+   *  own theme provider. */
+  theme?: BugReportTheme;
 
   /** Optional "open my inbox" affordance rendered inside the modal as a
    *  banner row below the tabs. Useful when the consumer has a dedicated
