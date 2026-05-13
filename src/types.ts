@@ -147,6 +147,9 @@ export type BugReportLabels = {
   fabSuccessMessage: string;
   fabFillAll: string;
   fabUploadFailed: string;
+  fabUploadFailedNetwork: string;
+  fabUploadFailedOffline: string;
+  fabSubmitFailedNetwork: string;
   fabFileTooBig: string;
   fabSnapFailed: string;
   priorityLow: string;
@@ -174,6 +177,9 @@ export const DEFAULT_LABELS: BugReportLabels = {
   fabSuccessMessage: "Pesan terkirim, terima kasih!",
   fabFillAll: "Lengkapi subjek dan deskripsi.",
   fabUploadFailed: "Gagal upload gambar:",
+  fabUploadFailedNetwork: "Koneksi internet bermasalah saat upload gambar. Coba lagi.",
+  fabUploadFailedOffline: "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
+  fabSubmitFailedNetwork: "Koneksi internet bermasalah saat mengirim laporan. Coba lagi.",
   fabFileTooBig: "File terlalu besar (maks 10MB):",
   fabSnapFailed: "Gagal mengambil cuplikan:",
   priorityLow: "Rendah",

@@ -140,6 +140,22 @@ function suggestKey(file: File): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 }
 
+// Browser fetch throws TypeError: "Failed to fetch" (Chromium) / "Load failed"
+// (WebKit) / "NetworkError when attempting to fetch resource" (Firefox) when
+// the request can't complete — preflight blocked, offline, DNS, TLS, etc.
+// supabase-js (and most SDKs) bubble the original error.message up as-is, so
+// "Failed to fetch" lands in front of end-users. Translate it to a clearer
+// Indonesian message; return null for anything we don't recognize so the
+// caller falls back to the raw err.message.
+function isNetworkError(err: unknown): boolean {
+  if (err instanceof TypeError) return true;
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /Failed to fetch|NetworkError|Network request failed|Load failed|net::ERR|ERR_NETWORK|ERR_INTERNET_DISCONNECTED/i.test(msg);
+}
+function isOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
 export function BugReportFab(props: BugReportFabProps) {
   const labels: BugReportLabels = useMemo(
     () => ({ ...DEFAULT_LABELS, ...(props.labels ?? {}) }),
@@ -274,21 +290,23 @@ export function BugReportFab(props: BugReportFabProps) {
         ? window.location.pathname + window.location.search
         : null;
 
-  async function uploadAll(): Promise<{ urls: string[]; failed: string[] }> {
-    if (images.length === 0) return { urls: [], failed: [] };
+  async function uploadAll(): Promise<{ urls: string[]; failed: string[]; networkFailure: boolean }> {
+    if (images.length === 0) return { urls: [], failed: [], networkFailure: false };
     setUploading(true);
     const urls: string[] = [];
     const failed: string[] = [];
+    let networkFailure = false;
     for (const a of images) {
       try {
         const url = await props.uploadImage(a.file, suggestKey(a.file));
         urls.push(url);
       } catch (err) {
+        if (isNetworkError(err)) networkFailure = true;
         failed.push(`${a.file.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
     setUploading(false);
-    return { urls, failed };
+    return { urls, failed, networkFailure };
   }
 
   async function submit(category: BugReportCategory) {
@@ -301,10 +319,22 @@ export function BugReportFab(props: BugReportFabProps) {
     }
     setSaving(true);
     setError(null);
-    const { urls, failed } = isMessage ? { urls: [], failed: [] } : await uploadAll();
+    const { urls, failed, networkFailure } = isMessage
+      ? { urls: [], failed: [] as string[], networkFailure: false }
+      : await uploadAll();
     if (failed.length > 0) {
       setSaving(false);
-      setError(`${labels.fabUploadFailed} ${failed.join("; ")}`);
+      // Collapse to a single clear message when EVERY failure was a browser
+      // network error — the per-file "Failed to fetch" suffix tells the user
+      // nothing actionable. Otherwise keep the per-file detail (mixed RLS /
+      // file-too-big / etc) so they can see which file the server rejected.
+      if (networkFailure && isOffline()) {
+        setError(labels.fabUploadFailedOffline);
+      } else if (networkFailure && failed.every((f) => /Failed to fetch|NetworkError|Network request failed|Load failed/i.test(f))) {
+        setError(labels.fabUploadFailedNetwork);
+      } else {
+        setError(`${labels.fabUploadFailed} ${failed.join("; ")}`);
+      }
       return;
     }
     try {
@@ -335,7 +365,13 @@ export function BugReportFab(props: BugReportFabProps) {
       }, 1500);
     } catch (err) {
       setSaving(false);
-      setError(err instanceof Error ? err.message : String(err));
+      if (isOffline()) {
+        setError(labels.fabUploadFailedOffline);
+      } else if (isNetworkError(err)) {
+        setError(labels.fabSubmitFailedNetwork);
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     }
   }
 
